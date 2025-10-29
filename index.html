@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Apps</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Scale factor – default 1 */
+  :root{--scale:1;}
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+  body{background:#f8f9fa;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;font-size:calc(1rem * var(--scale));}
+
+  header{padding:2rem;text-align:center;color:#2d3436;}
+  header h1{margin-bottom:.5rem;}
+  header p{color:#636e75;}
+
+  .add-btn{margin:0 auto 2rem auto;background:#7c8ff7;color:#fff;border:none;padding:1rem 2rem;border-radius:.5rem;font-size:1rem;cursor:pointer;}
+  .add-btn:hover{background:#6b74ff;}
+
+  .container{
+   
+    margin: 5px;
+    padding: 0.8rem;
+    display: flex
+;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+  .app-item{background:#fff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px rgba(0,0,0,.1);cursor:grab;transition:transform .2s ease,opacity .3s;flex:1 1 calc(20% - 2rem);display:flex;flex-direction:column;justify-content:center;}
+  .app-item:hover{transform:translateY(-2px);}
+  .app-card{display:flex;align-items:center;gap:1rem;flex-direction:column;text-align:center;}
+  .app-name{font-weight:600;color:#2d3436;font-size:1.1rem;}
+  .app-description{color:#636e75;font-size:.9rem;}
+
+  .edit-btn{
+    background: none;
+    border: none;
+    color: #636e75;
+    font-size: 1rem;
+    padding: 0 .3rem;
+    margin-top: .2rem;
+    transition: transform .5s;
+}
+  .edit-btn:hover  {
+    color: #495260;
+    transform: rotate(135deg), scale(1.15);
+	
+    transition: transform .5s;
+}
+  .delete-btn{
+    background: none;
+    border: none;
+    color: #636e75;
+    font-size: 1rem;
+    padding: 0 .3rem;
+    margin-top: .2rem;
+    transition: transform .5s;
+}
+  .delete-btn:hover  {
+    color: #495260;
+    transform: scale(1.3);
+
+    transition: transform .5s;
+}
+
+  /* modals */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.4);}
+  .modal .content{background:#fff;padding:2rem;border-radius:1rem;width:90%;max-width:400px;box-shadow:0 4px 8px rgba(0,0,0,.2);transform:translateY(-20px);opacity:0;transition:transform .5s ease,opacity .5s ease;}
+  .modal.show .content{transform:translateY(0);opacity:1;}
+  .modal label{display:block;margin-top:1rem;font-weight:500;}
+  .modal input{width:100%;padding:.6rem;margin-top:.4rem;border:1px solid #ccc;border-radius:.3rem;}
+  .modal .buttons{margin-top:2rem;display:flex;justify-content:flex-end;gap:1rem;}
+  .modal .buttons button{padding:.6rem 1.2rem;border:none;border-radius:.3rem;cursor:pointer;}
+  .modal #saveBtn{background:#7c8ff7;color:#fff;}
+  .modal #saveBtn:hover{background:#6b74ff;}
+  .modal #cancelBtn{background:#ccc;}
+  .modal #cancelBtn:hover{background:#bbb;}
+  .modal #confirmDeleteBtn{background:#e63946;color:#fff;}
+  .modal #confirmDeleteBtn:hover{background:#d32f2f;}
+  .modal #cancelDeleteBtn{background:#ccc;}
+  .modal #cancelDeleteBtn:hover{background:#bbb;}
+  .modal #closeSettingsBtn{background:#7c8ff7;color:#fff;}
+  .modal #closeSettingsBtn:hover{background:#6b74ff;}
+  #settingsModal > div > h2 {padding: 2px;
+  }
+
+  /* settings button */
+  #settingsBtn{position: absolute;
+    top: 20px;
+    right: 10px;
+    background: #7c8ff700;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    /* height: 60px; */
+    font-size: 1.2rem;
+    display: flex
+;
+    align-items: baseline;
+    justify-content: center;
+    cursor: pointer;
+    /* box-shadow: 0 4px 6px rgba(0, 0, 0, .1); */
+    transition: transform .5s;
+    align-content: space-around;
+    flex-wrap: wrap;
+    flex-direction: column-reverse;}
+  #settingsBtn:hover{transform:scale(1.05);transform: rotate(30deg);}
+  #settingsBtn:active{transform:scale(1.35);opacity:0,7;}
+
+  /* switch */
+  .switch{position:relative;display:inline-block;width:50px;height:24px;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;cursor:pointer;background:#ccc;border-radius:24px;top:0;left:0;right:0;bottom:0;transition:.4s;}
+  .slider:before{position:absolute;content:"";height:18px;width:18px;background:white;border-radius:50%;bottom:3px;left:3px;transition:.4s;}
+  input:checked + .slider{background:#7c8ff7;}
+  input:checked + .slider:before{transform:translateX(26px);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PXXIS HUB</h1>
+  <p> BE WILLY TEA, BITCH! </p>
+</header>
+
+<button class="add-btn" id="addBtn">+ Add New App</button>
+
+<div class="container" id="appContainer"></div>
+
+<!-- Settings button -->
+<button id="settingsBtn" title="Settings">⚙️</button>
+
+<!-- Modal – Add / Edit -->
+<div class="modal" id="modal">
+  <div class="content">
+    <h2 id="modalTitle">Add New App</h2>
+    <input type="hidden" id="appId">
+    <label for="path">App URL</label>
+    <input type="url" id="path" required placeholder="https://example.com">
+    <label for="name">App Name (optional)</label>
+    <input type="text" id="name" placeholder="My Cool App">
+    <label for="description">Description (optional)</label>
+    <input type="text" id="description" placeholder="Short description">
+    <div class="buttons">
+      <button id="saveBtn">Save</button>
+      <button id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal" id="deleteModal">
+  <div class="content">
+    <h2>Confirm Delete</h2>
+    <p>Are you sure you want to delete this app?</p>
+    <div class="buttons">
+      <button id="confirmDeleteBtn">Delete</button>
+      <button id="cancelDeleteBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal" id="settingsModal">
+  <div class="content">
+    <h2>Settings</h2>
+	<br>
+    <p>Total apps: <span id="totalApps">0</span></p>
+  <!--  <p>Most used apps (top 5):</p> -->
+    <ol id="mostUsedList"></ol>
+	<br>
+
+    <label class="switch">
+      <input type="checkbox" id="autoSortToggle">
+      <span class="slider"></span>
+    </label>
+	<br>
+    <span>Auto‑sort by usage</span>
+	<br>
+    <label for="fontSizeSlider" style="margin-top:1rem;display:block;">Font size (rem scale)</label>
+    <input type="range" id="fontSizeSlider" min="0.7" max="1.2" step="0.01" value="1">
+
+    <div class="buttons">
+      <button id="closeSettingsBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------ App Manager ------------------------------------------------ */
+class AppManager {
+  constructor() {
+    /* ---------- Persistent data ---------- */
+    this.apps = JSON.parse(localStorage.getItem('apps')) || [];
+    this.usageCounts = JSON.parse(localStorage.getItem('usageCounts')) || {};
+    this.settings = JSON.parse(localStorage.getItem('settings')) || { autoSort: false };
+    this.fontScale = parseFloat(localStorage.getItem('fontScale')) || 1;
+
+    /* ---------- DOM ---------- */
+    this.container = document.getElementById('appContainer');
+    this.modal = document.getElementById('modal');
+    this.modalContent = this.modal.querySelector('.content');
+    this.modalTitle = document.getElementById('modalTitle');
+    this.idInput = document.getElementById('appId');
+    this.pathInput = document.getElementById('path');
+    this.nameInput = document.getElementById('name');
+    this.descInput = document.getElementById('description');
+    this.saveBtn = document.getElementById('saveBtn');
+    this.cancelBtn = document.getElementById('cancelBtn');
+
+    this.deleteModal = document.getElementById('deleteModal');
+    this.deleteContent = this.deleteModal.querySelector('.content');
+    this.confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    this.cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    this.pathToDelete = null;
+
+    this.settingsModal = document.getElementById('settingsModal');
+    this.settingsContent = this.settingsModal.querySelector('.content');
+    this.totalAppsEl = document.getElementById('totalApps');
+    this.mostUsedListEl = document.getElementById('mostUsedList');
+    this.autoSortToggle = document.getElementById('autoSortToggle');
+    this.fontSizeSlider = document.getElementById('fontSizeSlider');
+    this.closeSettingsBtn = document.getElementById('closeSettingsBtn');
+
+    this.settingsBtn = document.getElementById('settingsBtn');
+
+    /* ---------- Init ---------- */
+    this.applyFontScale(this.fontScale);
+    this.fontSizeSlider.value = this.fontScale;
+    this.autoSortToggle.checked = this.settings.autoSort;
+
+    this.renderApps();
+    this.updateSettingsDisplay();
+    this.setupEvents();
+    this.setupDragAndDrop();
+  }
+
+  /* ------------------- Rendering ------------------- */
+  renderApps() {
+    if (this.settings.autoSort) {
+      this.apps.sort((a, b) => (this.usageCounts[b.path] || 0) - (this.usageCounts[a.path] || 0));
+    }
+    this.container.innerHTML = '';
+    this.apps.forEach(app => this.addAppElement(app));
+  }
+
+  addAppElement(app) {
+    const item = document.createElement('div');
+    item.className = 'app-item';
+    item.draggable = true;
+    item.dataset.id = app.path;
+
+    const card = document.createElement('div');
+    card.className = 'app-card';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'app-name';
+    nameEl.textContent = app.name || app.path;
+
+    const descEl = document.createElement('div');
+    descEl.className = 'app-description';
+    descEl.textContent = app.description;
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.title = 'Edit';
+    editBtn.textContent = '✏️';
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      this.showModal('edit', app);
+    };
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.title = 'Delete';
+    deleteBtn.textContent = '✕';
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      this.showDeleteConfirm(app.path);
+    };
+
+    card.appendChild(nameEl);
+    if (app.description) card.appendChild(descEl);
+    card.appendChild(editBtn);
+    card.appendChild(deleteBtn);
+
+    item.appendChild(card);
+
+    /* click opens the site and increments usage */
+    item.addEventListener('click', () => {
+      this.incrementUsage(app.path);
+      window.open(app.path, '_blank');
+    });
+
+    this.container.appendChild(item);
+  }
+
+  /* ------------------- Modals ------------------- */
+  showModal(mode, app = null) {
+    this.modalTitle.textContent = mode === 'add' ? 'Add New App' : 'Edit App';
+    this.idInput.value = app?.path ?? '';
+    this.pathInput.value = app?.path ?? '';
+    this.nameInput.value = app?.name ?? '';
+    this.descInput.value = app?.description ?? '';
+    this.modal.style.display = 'flex';
+    setTimeout(() => this.modal.classList.add('show'), 10);
+  }
+
+  closeModal() {
+    this.modal.classList.remove('show');
+    setTimeout(() => this.modal.style.display = 'none', 300);
+  }
+
+  showDeleteConfirm(path) {
+    this.pathToDelete = path;
+    this.deleteModal.style.display = 'flex';
+    setTimeout(() => this.deleteModal.classList.add('show'), 10);
+  }
+
+  closeDeleteConfirm() {
+    this.deleteModal.classList.remove('show');
+    setTimeout(() => this.deleteModal.style.display = 'none', 300);
+  }
+
+  /* ------------------- CRUD ------------------- */
+  saveApp() {
+    const path = this.pathInput.value.trim();
+    const name = this.nameInput.value.trim();
+    const description = this.descInput.value.trim();
+    const originalPath = this.idInput.value; // empty when adding
+
+    if (!path) return;
+
+    if (originalPath && originalPath !== path) {
+      this.apps = this.apps.filter(a => a.path !== originalPath);
+      delete this.usageCounts[originalPath];
+    }
+
+    const index = this.apps.findIndex(a => a.path === path);
+    if (index >= 0) {
+      this.apps[index] = { path, name, description };
+    } else {
+      this.apps.push({ path, name, description });
+    }
+
+    localStorage.setItem('apps', JSON.stringify(this.apps));
+    this.closeModal();
+    this.renderApps();
+  }
+
+  deleteApp(path) {
+    this.apps = this.apps.filter(a => a.path !== path);
+    delete this.usageCounts[path];
+    localStorage.setItem('apps', JSON.stringify(this.apps));
+    localStorage.setItem('usageCounts', JSON.stringify(this.usageCounts));
+    this.closeDeleteConfirm();
+    this.renderApps();
+    this.updateSettingsDisplay();
+  }
+
+  /* ------------------- Usage & Sorting ------------------- */
+  incrementUsage(path) {
+    this.usageCounts[path] = (this.usageCounts[path] || 0) + 1;
+    localStorage.setItem('usageCounts', JSON.stringify(this.usageCounts));
+
+    if (this.settings.autoSort) {
+      this.renderApps();
+    }
+    this.updateSettingsDisplay();
+  }
+
+  /* ------------------- Settings ------------------- */
+  updateSettingsDisplay() {
+    this.totalAppsEl.textContent = this.apps.length;
+    /* Most used list – show short names
+    const sorted = Object.entries(this.usageCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    this.mostUsedListEl.innerHTML = '';
+    sorted.forEach(([path, count]) => {
+      const name = this.shortNameFromPath(path);
+      const li = document.createElement('li');
+      li.textContent = `${name} (${count})`;
+      this.mostUsedListEl.appendChild(li);
+    });  
+  }
+
+  shortNameFromPath(path) {
+    const parts = path.split(/[\\/]/);
+    const file = parts[parts.length - 1];
+    return file.replace(/\.html?$/i, '');
+	*/
+  }
+
+  showSettings() {
+    this.settingsModal.style.display = 'flex';
+    setTimeout(() => this.settingsModal.classList.add('show'), 10);
+    this.updateSettingsDisplay();
+  }
+
+  closeSettings() {
+    this.settingsModal.classList.remove('show');
+    setTimeout(() => this.settingsModal.style.display = 'none', 300);
+  }
+
+  applyFontScale(scale) {
+    document.documentElement.style.setProperty('--scale', scale);
+    this.fontScale = scale;
+    localStorage.setItem('fontScale', scale);
+  }
+
+  /* ------------------- Event Handlers ------------------- */
+  setupEvents() {
+    document.getElementById('addBtn').onclick = () => this.showModal('add');
+    this.saveBtn.onclick = () => this.saveApp();
+    this.cancelBtn.onclick = () => this.closeModal();
+
+    this.confirmDeleteBtn.onclick = () => this.deleteApp(this.pathToDelete);
+    this.cancelDeleteBtn.onclick = () => this.closeDeleteConfirm();
+
+    this.settingsBtn.onclick = () => this.showSettings();
+    this.closeSettingsBtn.onclick = () => this.closeSettings();
+
+    this.autoSortToggle.checked = this.settings.autoSort;
+    this.autoSortToggle.onchange = () => {
+      this.settings.autoSort = this.autoSortToggle.checked;
+      localStorage.setItem('settings', JSON.stringify(this.settings));
+      this.renderApps();
+    };
+
+    this.fontSizeSlider.oninput = () => this.applyFontScale(this.fontSizeSlider.value);
+  }
+
+  /* ------------------- Drag & Drop ------------------- */
+  setupDragAndDrop() {
+    const container = this.container;
+    container.addEventListener('dragstart', e => {
+      const item = e.target.closest('.app-item');
+      if (!item) return;
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        id: item.dataset.id,
+        originalIndex: Array.from(container.children).indexOf(item)
+      }));
+    });
+    container.addEventListener('dragover', e => e.preventDefault());
+    container.addEventListener('drop', e => {
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const draggedItem = container.querySelector(`[data-id="${data.id}"]`);
+      if (!draggedItem) return;
+
+      const target = e.target.closest('.app-item');
+      const targetIndex = target
+        ? Array.from(container.children).indexOf(target)
+        : container.children.length;
+
+      container.removeChild(draggedItem);
+      let newIndex = targetIndex;
+      if (target && data.originalIndex < targetIndex) newIndex--;
+
+      if (newIndex >= container.children.length) {
+        container.appendChild(draggedItem);
+      } else {
+        container.insertBefore(draggedItem, container.children[newIndex]);
+      }
+
+      const movedApp = this.apps.splice(data.originalIndex, 1)[0];
+      this.apps.splice(newIndex, 0, movedApp);
+      localStorage.setItem('apps', JSON.stringify(this.apps));
+    });
+  }
+}
+
+/* Initialize on DOM ready */
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    window.appManager = new AppManager();
+  } catch (e) {
+    console.error('AppManager failed to load:', e);
+    alert('Something went wrong – check the console.');
+  }
+});
+</script>
+</body>
+</html>
