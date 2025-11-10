@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Converter</title>
+  <link href="https://cdn.jsdelivr.net/npm/beercss@3.7.10/dist/cdn/beer.min.css" rel="stylesheet">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.7.10/dist/cdn/beer.min.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/material-dynamic-colors@1.1.2/dist/cdn/material-dynamic-colors.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    .upload-area {
+      border: 3px dashed rgba(255,255,255,0.5);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: white;
+      background: rgba(255,255,255,0.2);
+      transform: scale(1.02);
+    }
+    .file-info {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .format-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 0.5rem;
+      margin: 1rem 0;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 1rem;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+    }
+    .format-btn {
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+    .file-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin: 1rem 0;
+    }
+    .file-item {
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0.5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stats-card {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      margin: 0.5rem;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .hidden {
+      display: none;
+    }
+    .guide-section {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      margin: 2rem 0;
+    }
+    .faq-item {
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding: 1rem 0;
+    }
+    .faq-item:last-child {
+      border-bottom: none;
+    }
+    /* Hide icon text labels */
+    i {
+      font-family: 'Material Icons' !important;
+      font-style: normal;
+    }
+  </style>
+</head>
+<body class="dark">
+  <div class="container">
+    <article class="no-padding">
+      <div class="padding">
+        <h3 class="center-align white-text">
+          <div>⚡ File Converter</div>
+        </h3>
+        <p class="center-align white-text">Convert images and audio files instantly in your browser</p>
+        
+        <div class="stats-grid">
+          <div class="stats-card">
+            <h6 class="white-text" id="totalCount">0</h6>
+            <p class="white-text small-text">Total Converted</p>
+          </div>
+          <div class="stats-card">
+            <h6 class="white-text" id="imageCount">0</h6>
+            <p class="white-text small-text">Images</p>
+          </div>
+          <div class="stats-card">
+            <h6 class="white-text" id="audioCount">0</h6>
+            <p class="white-text small-text">Audio</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="uploadSection">
+        <div class="upload-area" id="uploadArea">
+          <h5 class="white-text">📤 Drop your files here</h5>
+          <p class="white-text">or click to browse (supports multiple files)</p>
+          <input type="file" id="fileInput" class="hidden" accept="image/*,audio/*" multiple>
+        </div>
+      </div>
+
+      <div id="conversionSection" class="hidden">
+        <div class="padding">
+          <h6 class="white-text">Selected Files (<span id="fileCountText">0</span>)</h6>
+          <div class="file-list" id="fileList"></div>
+        </div>
+
+        <div class="padding">
+          <h6 class="white-text">Convert to:</h6>
+          <div id="formatGrid" class="format-grid"></div>
+        </div>
+
+        <div class="padding">
+          <h6 class="white-text">Batch Rename Pattern (optional)</h6>
+          <p class="white-text small-text">Use {name} for original name, {index} for number</p>
+          <div class="field border">
+            <input type="text" id="renamePattern" placeholder="e.g., photo_{index} or {name}_converted">
+          </div>
+        </div>
+
+        <div class="padding center-align">
+          <button class="large-elevate" id="convertBtn" disabled>
+            <span>🔄 Convert All</span>
+          </button>
+          <button class="border large-round white-text" id="resetBtn">
+            <span>🔁 New Files</span>
+          </button>
+        </div>
+
+        <div id="resultSection" class="hidden padding">
+          <div class="file-info center-align">
+            <h6 class="white-text">✅ Conversion Complete!</h6>
+            <div id="downloadOptions"></div>
+            <button class="large-elevate" id="downloadAllBtn">
+              <span>⬇️ Download All (ZIP)</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="progressSection" class="hidden padding">
+          <div class="center-align">
+            <progress class="circle large"></progress>
+            <p class="white-text" id="progressText">Converting...</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- User Guide Section -->
+    <div class="guide-section">
+      <details class="padding">
+        <summary class="white-text">
+          <span>📖 User Guide</span>
+        </summary>
+        <div class="padding">
+          <h6 class="white-text">How to Use</h6>
+          <div class="white-text">
+            <p><strong>Single File Conversion:</strong></p>
+            <ol>
+              <li>Click the upload area or drag and drop a file</li>
+              <li>Select your desired output format</li>
+              <li>Optionally rename the file</li>
+              <li>Click "Convert All" and download</li>
+            </ol>
+            
+            <p><strong>Batch Conversion:</strong></p>
+            <ol>
+              <li>Select multiple files (Ctrl/Cmd + Click or drag multiple)</li>
+              <li>Choose the output format for all files</li>
+              <li>Use batch rename pattern for organized naming</li>
+              <li>Convert and download as ZIP or individually</li>
+            </ol>
+            
+            <p><strong>Batch Rename Patterns:</strong></p>
+            <ul>
+              <li><code>{name}</code> - Original filename</li>
+              <li><code>{index}</code> - Sequential number (1, 2, 3...)</li>
+              <li>Example: <code>photo_{index}</code> → photo_1, photo_2, etc.</li>
+              <li>Example: <code>{name}_compressed</code> → original_compressed</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="padding">
+        <summary class="white-text">
+          <span>❓ FAQ</span>
+        </summary>
+        <div class="padding">
+          <div class="faq-item">
+            <h6 class="white-text">Are my files uploaded to a server?</h6>
+            <p class="white-text">No! All conversions happen locally in your browser. Your files never leave your device, ensuring complete privacy.</p>
+          </div>
+          
+          <div class="faq-item">
+            <h6 class="white-text">What file formats are supported?</h6>
+            <p class="white-text"><strong>Images:</strong> JPEG, PNG, WEBP, GIF, BMP, ICO, TIFF, AVIF<br>
+            <strong>Audio:</strong> MP3, WAV, OGG, AAC, FLAC, M4A (WAV output works best)</p>
+          </div>
+          
+          <div class="faq-item">
+            <h6 class="white-text">Is there a file size limit?</h6>
+            <p class="white-text">The limit depends on your browser's memory. Most modern browsers can handle files up to several hundred MB, but very large files may slow down conversion.</p>
+          </div>
+          
+          <div class="faq-item">
+            <h6 class="white-text">Can I convert RAW camera files?</h6>
+            <p class="white-text">Currently, only standard image formats are supported. RAW formats require specialized libraries and server-side processing.</p>
+          </div>
+          
+          <div class="faq-item">
+            <h6 class="white-text">How do I download multiple converted files?</h6>
+            <p class="white-text">After batch conversion, you can download all files as a single ZIP archive or download each file individually.</p>
+          </div>
+          
+          <div class="faq-item">
+            <h6 class="white-text">Why does audio conversion only output WAV?</h6>
+            <p class="white-text">Browser-based audio conversion has limitations. WAV is a universal uncompressed format that works reliably across all browsers without additional codecs.</p>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    const imageFormats = ['AVIF', 'BMP', 'GIF', 'JPEG', 'JPG', 'PNG', 'WEBP', 'TIFF', 'ICO'];
+    const audioFormats = ['MP3', 'WAV', 'OGG', 'AAC', 'FLAC', 'M4A'];
+    
+    let selectedFiles = [];
+    let selectedFormat = null;
+    let convertedFiles = [];
+    
+    // Stats from storage
+    let stats = {
+      total: 0,
+      images: 0,
+      audio: 0
+    };
+
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const uploadSection = document.getElementById('uploadSection');
+    const conversionSection = document.getElementById('conversionSection');
+    const fileList = document.getElementById('fileList');
+    const fileCountText = document.getElementById('fileCountText');
+    const formatGrid = document.getElementById('formatGrid');
+    const convertBtn = document.getElementById('convertBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const resultSection = document.getElementById('resultSection');
+    const progressSection = document.getElementById('progressSection');
+    const progressText = document.getElementById('progressText');
+    const downloadOptions = document.getElementById('downloadOptions');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const renamePattern = document.getElementById('renamePattern');
+
+    // Load stats
+    loadStats();
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files);
+      handleFiles(files);
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      handleFiles(files);
+    });
+
+    function handleFiles(files) {
+      selectedFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('audio/'));
+      
+      if (selectedFiles.length === 0) {
+        alert('Please select image or audio files');
+        return;
+      }
+      
+      fileCountText.textContent = selectedFiles.length;
+      displayFileList();
+      
+      const hasImages = selectedFiles.some(f => f.type.startsWith('image/'));
+      const hasAudio = selectedFiles.some(f => f.type.startsWith('audio/'));
+      
+      if (hasImages && hasAudio) {
+        alert('Please select either images or audio files, not both');
+        return;
+      }
+      
+      populateFormats(hasImages ? imageFormats : audioFormats);
+      uploadSection.classList.add('hidden');
+      conversionSection.classList.remove('hidden');
+    }
+
+    function displayFileList() {
+      fileList.innerHTML = '';
+      selectedFiles.forEach((file, index) => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+          <div>
+            <span class="white-text">${file.type.startsWith('image/') ? '🖼️' : '🎵'} ${file.name}</span>
+            <span class="white-text small-text"> (${formatFileSize(file.size)})</span>
+          </div>
+          <button class="small-round border white-text" onclick="removeFile(${index})">
+            ✕
+          </button>
+        `;
+        fileList.appendChild(div);
+      });
+    }
+
+    window.removeFile = function(index) {
+      selectedFiles.splice(index, 1);
+      if (selectedFiles.length === 0) {
+        resetApp();
+      } else {
+        fileCountText.textContent = selectedFiles.length;
+        displayFileList();
+      }
+    };
+
+    function populateFormats(formats) {
+      formatGrid.innerHTML = '';
+      formats.forEach(format => {
+        const btn = document.createElement('button');
+        btn.className = 'format-btn border round white-text';
+        btn.textContent = format;
+        btn.onclick = () => selectFormat(format, btn);
+        formatGrid.appendChild(btn);
+      });
+    }
+
+    function selectFormat(format, btn) {
+      document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('fill'));
+      btn.classList.add('fill');
+      selectedFormat = format.toLowerCase();
+      convertBtn.disabled = false;
+    }
+
+    convertBtn.addEventListener('click', async () => {
+      if (selectedFiles.length === 0 || !selectedFormat) return;
+      
+      progressSection.classList.remove('hidden');
+      resultSection.classList.add('hidden');
+      convertedFiles = [];
+      
+      try {
+        const isImage = selectedFiles[0].type.startsWith('image/');
+        
+        for (let i = 0; i < selectedFiles.length; i++) {
+          progressText.textContent = `Converting ${i + 1} of ${selectedFiles.length}...`;
+          
+          const file = selectedFiles[i];
+          const fileName = generateFileName(file.name, i);
+          
+          if (isImage) {
+            const blob = await convertImage(file);
+            convertedFiles.push({ blob, name: fileName });
+          } else {
+            const blob = await convertAudio(file);
+            convertedFiles.push({ blob, name: fileName });
+          }
+        }
+        
+        // Update stats
+        stats.total += selectedFiles.length;
+        if (isImage) {
+          stats.images += selectedFiles.length;
+        } else {
+          stats.audio += selectedFiles.length;
+        }
+        saveStats();
+        updateStatsDisplay();
+        
+        progressSection.classList.add('hidden');
+        displayResults();
+        resultSection.classList.remove('hidden');
+      } catch (error) {
+        alert('Conversion failed: ' + error.message);
+        progressSection.classList.add('hidden');
+      }
+    });
+
+    function generateFileName(originalName, index) {
+      const pattern = renamePattern.value.trim();
+      const baseName = originalName.replace(/\.[^/.]+$/, '');
+      const ext = selectedFormat;
+      
+      if (!pattern) {
+        return `${baseName}.${ext}`;
+      }
+      
+      let newName = pattern
+        .replace(/{name}/g, baseName)
+        .replace(/{index}/g, index + 1);
+      
+      return `${newName}.${ext}`;
+    }
+
+    function displayResults() {
+      downloadOptions.innerHTML = '';
+      convertedFiles.forEach((file, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'border round white-text margin';
+        btn.innerHTML = `<span>⬇️ ${file.name}</span>`;
+        btn.onclick = () => downloadSingle(file);
+        downloadOptions.appendChild(btn);
+      });
+    }
+
+    function downloadSingle(file) {
+      const url = URL.createObjectURL(file.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    downloadAllBtn.addEventListener('click', async () => {
+      if (convertedFiles.length === 1) {
+        downloadSingle(convertedFiles[0]);
+        return;
+      }
+      
+      const zip = new JSZip();
+      convertedFiles.forEach(file => {
+        zip.file(file.name, file.blob);
+      });
+      
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'converted_files.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    async function convertImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            let mimeType = 'image/png';
+            if (selectedFormat === 'jpeg' || selectedFormat === 'jpg') mimeType = 'image/jpeg';
+            else if (selectedFormat === 'webp') mimeType = 'image/webp';
+            else if (selectedFormat === 'bmp') mimeType = 'image/bmp';
+            else if (selectedFormat === 'gif') mimeType = 'image/gif';
+            else if (selectedFormat === 'ico') mimeType = 'image/x-icon';
+            
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Canvas conversion failed'));
+              }
+            }, mimeType, 0.95);
+          };
+          img.onerror = () => reject(new Error('Failed to load image'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function convertAudio(file) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          
+          const wavBlob = audioBufferToWav(audioBuffer);
+          resolve(wavBlob);
+        } catch (error) {
+          reject(new Error('Audio conversion to WAV format'));
+        }
+      });
+    }
+
+    function audioBufferToWav(audioBuffer) {
+      const numberOfChannels = audioBuffer.numberOfChannels;
+      const sampleRate = audioBuffer.sampleRate;
+      const format = 1;
+      const bitDepth = 16;
+      
+      const bytesPerSample = bitDepth / 8;
+      const blockAlign = numberOfChannels * bytesPerSample;
+      
+      const data = [];
+      for (let i = 0; i < audioBuffer.length; i++) {
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+          const sample = audioBuffer.getChannelData(channel)[i];
+          const intSample = Math.max(-1, Math.min(1, sample)) * 0x7FFF;
+          data.push(intSample);
+        }
+      }
+      
+      const dataLength = data.length * bytesPerSample;
+      const buffer = new ArrayBuffer(44 + dataLength);
+      const view = new DataView(buffer);
+      
+      const writeString = (offset, string) => {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      };
+      
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataLength, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, format, true);
+      view.setUint16(22, numberOfChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * blockAlign, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitDepth, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataLength, true);
+      
+      let offset = 44;
+      for (let i = 0; i < data.length; i++) {
+        view.setInt16(offset, data[i], true);
+        offset += 2;
+      }
+      
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    resetBtn.addEventListener('click', resetApp);
+
+    function resetApp() {
+      selectedFiles = [];
+      selectedFormat = null;
+      convertedFiles = [];
+      fileInput.value = '';
+      renamePattern.value = '';
+      uploadSection.classList.remove('hidden');
+      conversionSection.classList.add('hidden');
+      resultSection.classList.add('hidden');
+      convertBtn.disabled = true;
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    function loadStats() {
+      const saved = localStorage.getItem('converterStats');
+      if (saved) {
+        stats = JSON.parse(saved);
+        updateStatsDisplay();
+      }
+    }
+
+    function saveStats() {
+      localStorage.setItem('converterStats', JSON.stringify(stats));
+    }
+
+    function updateStatsDisplay() {
+      document.getElementById('totalCount').textContent = stats.total;
+      document.getElementById('imageCount').textContent = stats.images;
+      document.getElementById('audioCount').textContent = stats.audio;
+    }
+  </script>
+</body>
+</html>
